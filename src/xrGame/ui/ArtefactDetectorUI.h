@@ -90,6 +90,7 @@ public:
 	void construct(CEliteDetector* p);
 	void Clear();
 	void RegisterItemToDraw(const Fvector& p, const shared_str& palette_idx);
+	bool IsRadarVisible(const Fvector& world_pos);
 };
 
 

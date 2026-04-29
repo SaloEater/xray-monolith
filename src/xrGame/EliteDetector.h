@@ -1,6 +1,7 @@
 #pragma once
 #include "CustomDetector.h"
 #include "level.h"
+#include "hudsound.h"
 
 class CUIArtefactDetectorElite;
 
@@ -10,6 +11,8 @@ class CEliteDetector : public CCustomDetector
 public:
 	CEliteDetector();
 	virtual ~CEliteDetector();
+	virtual void Load(LPCSTR section);
+	virtual void OnH_B_Independent(bool just_before_destroy);
 	virtual void render_item_3d_ui();
 	virtual LPCSTR ui_xml_tag() const { return "elite"; }
 protected:
@@ -17,6 +20,9 @@ protected:
 	virtual void CreateUI();
 	virtual void ResetUI();
 	CUIArtefactDetectorElite& ui();
+
+	HUD_SOUND_ITEM		m_snd_af_found;
+	xr_set<CArtefact*>	m_alerted_artefacts;
 };
 
 

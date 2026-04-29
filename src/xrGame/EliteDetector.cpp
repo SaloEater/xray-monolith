@@ -15,6 +15,19 @@ CEliteDetector::CEliteDetector()
 
 CEliteDetector::~CEliteDetector()
 {
+	HUD_SOUND_ITEM::DestroySound(m_snd_af_found);
+}
+
+void CEliteDetector::Load(LPCSTR section)
+{
+	inherited::Load(section);
+	HUD_SOUND_ITEM::LoadSound(section, "af_find_sound_", m_snd_af_found, SOUND_TYPE_ITEM);
+}
+
+void CEliteDetector::OnH_B_Independent(bool just_before_destroy)
+{
+	inherited::OnH_B_Independent(just_before_destroy);
+	m_alerted_artefacts.clear();
 }
 
 
@@ -38,12 +51,17 @@ void CEliteDetector::ResetUI()
 void CEliteDetector::UpdateAf()
 {
 	ui().Clear();
-	if (m_artefacts.m_ItemInfos.size() == 0) return;
+	if (m_artefacts.m_ItemInfos.size() == 0)
+	{
+		m_alerted_artefacts.clear();
+		return;
+	}
 
 	CAfList::ItemsMapIt it_b = m_artefacts.m_ItemInfos.begin();
 	CAfList::ItemsMapIt it_e = m_artefacts.m_ItemInfos.end();
 	CAfList::ItemsMapIt it = it_b;
 
+	xr_set<CArtefact*> current_visible;
 	Fvector detector_pos = Position();
 	for (; it_b != it_e; ++it_b)
 	{
@@ -53,6 +71,13 @@ void CEliteDetector::UpdateAf()
 
 		ui().RegisterItemToDraw(pAf->Position(), "af_sign");
 
+		if (ui().IsRadarVisible(pAf->Position()))
+		{
+			current_visible.insert(pAf);
+			if (m_alerted_artefacts.find(pAf) == m_alerted_artefacts.end())
+				HUD_SOUND_ITEM::PlaySound(m_snd_af_found, Fvector().set(0, 0, 0), this, true, false);
+		}
+
 		if (pAf->CanBeInvisible())
 		{
 			float d = detector_pos.distance_to(pAf->Position());
@@ -60,6 +85,8 @@ void CEliteDetector::UpdateAf()
 				pAf->SwitchVisibility(true);
 		}
 	}
+
+	m_alerted_artefacts = current_visible;
 }
 
 void CEliteDetector::render_item_3d_ui()
@@ -208,6 +235,33 @@ void CUIArtefactDetectorElite::Clear()
 	m_items_to_draw.clear();
 }
 
+bool CUIArtefactDetectorElite::IsRadarVisible(const Fvector& world_pos)
+{
+	Fvector2 wrk_sz = m_wrk_area->GetWndSize();
+	Fvector2 rp;
+	m_wrk_area->GetAbsolutePos(rp);
+
+	Fmatrix Mc, M;
+	float h, p;
+	Device.vCameraDirection.getHP(h, p);
+	Mc.setHPB(h, 0, 0);
+	Mc.c.set(Device.vCameraPosition);
+	M.invert(Mc);
+
+	Fvector pt3d;
+	M.transform_tiny(pt3d, world_pos);
+
+	float kz = wrk_sz.y / m_parent->m_fAfDetectRadius;
+	pt3d.x = pt3d.x * kz + wrk_sz.x / 2.0f;
+	pt3d.z = pt3d.z * kz - wrk_sz.y;
+
+	Fvector2 pos;
+	pos.set(pt3d.x, -pt3d.z);
+	pos.sub(rp);
+
+	return Frect().set(0, 0, wrk_sz.x, wrk_sz.y).in(pos);
+}
+
 void CUIArtefactDetectorElite::RegisterItemToDraw(const Fvector& p, const shared_str& palette_idx)
 {
 	xr_map<shared_str, CUIStatic*>::iterator it = m_palette.find(palette_idx);
@@ -241,6 +295,7 @@ void CScientificDetector::UpdateWork()
 {
 	ui().Clear();
 
+	xr_set<CArtefact*> current_visible;
 	CAfList::ItemsMapIt ait_b = m_artefacts.m_ItemInfos.begin();
 	CAfList::ItemsMapIt ait_e = m_artefacts.m_ItemInfos.end();
 	CAfList::ItemsMapIt ait = ait_b;
@@ -253,6 +308,13 @@ void CScientificDetector::UpdateWork()
 
 		ui().RegisterItemToDraw(pAf->Position(), pAf->cNameSect());
 
+		if (ui().IsRadarVisible(pAf->Position()))
+		{
+			current_visible.insert(pAf);
+			if (m_alerted_artefacts.find(pAf) == m_alerted_artefacts.end())
+				HUD_SOUND_ITEM::PlaySound(m_snd_af_found, Fvector().set(0, 0, 0), this, true, false);
+		}
+
 		if (pAf->CanBeInvisible())
 		{
 			float d = detector_pos.distance_to(pAf->Position());
@@ -260,6 +322,7 @@ void CScientificDetector::UpdateWork()
 				pAf->SwitchVisibility(true);
 		}
 	}
+	m_alerted_artefacts = current_visible;
 
 	CZoneList::ItemsMapIt zit_b = m_zones.m_ItemInfos.begin();
 	CZoneList::ItemsMapIt zit_e = m_zones.m_ItemInfos.end();
